@@ -1,193 +1,130 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>문서 보안 검사 — 업로드</title>
-
+  <title>문서 보안 스캔 데모</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; padding: 24px; background:#f7f9fc; }
-    .container { max-width:800px; margin:0 auto; background:#fff; padding:20px; border-radius:8px; box-shadow:0 6px 18px rgba(0,0,0,0.06); }
-    h1 { margin-top:0; font-size:1.4rem; }
-    .dropzone { border:2px dashed #cbd5e1; border-radius:8px; padding:28px; text-align:center; cursor:pointer; background:#fbfdff; }
-    .dropzone.drag { border-color:#7c3aed; background:#f5f3ff; }
-    .file-list { margin-top:12px; }
-    .file-item { padding:8px 12px; border-radius:6px; background:#f1f5f9; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; }
-    .btn { display:inline-block; padding:8px 14px; border-radius:6px; text-decoration:none; background:#2563eb; color:white; border:none; cursor:pointer; }
-    .btn.secondary { background:#64748b; }
-    .hint { color:#475569; font-size:0.9rem; margin-top:8px; }
-    .error { color:#b91c1c; font-weight:600; }
-    .success { color:#065f46; font-weight:600; }
+    :root { --border:#e5e7eb; --muted:#666; --ok:#0a7f3f; --err:#c62828; --bg:#0b1020; --fg:#e6edf3; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 24px; }
+    header { margin-bottom: 16px; }
+    .card { border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-top: 16px; }
+    .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    button { padding: 10px 14px; border-radius: 8px; border: 1px solid #ddd; cursor: pointer; background:white; }
+    button:hover { background: #f7f7f7; }
+    .muted { color: var(--muted); font-size: 13px; }
+    pre { background: var(--bg); color: var(--fg); padding: 12px; border-radius: 8px; overflow: auto; }
+    .success { color: var(--ok); }
+    .error { color: var(--err); white-space: pre-wrap; }
+    .summary { white-space: pre-wrap; line-height: 1.5; }
+    .hint { font-size: 12px; color: #777; margin-top: 4px; }
+    .dropzone {
+      border: 2px dashed var(--border); border-radius: 12px; padding: 28px; text-align: center; cursor: pointer;
+      transition: background .15s ease, border-color .15s ease;
+    }
+    .dropzone.dragover { background: #fafafa; border-color: #94a3b8; }
+    .filename { font-size: 13px; color:#333; margin-top:8px; }
+    input[type="file"] { display:none; }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>문서 보안 검사</h1>
-    <p class="hint">MS Office 문서(.doc/.docx/.xls/.xlsx/.ppt/.pptx/.rtf) 또는 한글(.hwp) 파일을 업로드하면 서버에서 oletools 기반 분석을 실행합니다.</p>
+  <header>
+    <h1>문서 보안 스캔 데모</h1>
+  </header>
 
-    <div id="dropzone" class="dropzone" tabindex="0">
-      <p><strong>파일을 여기에 드래그하거나 클릭하여 선택하세요</strong></p>
-      <p class="hint">허용 확장자: <code>.doc .docx .xls .xlsx .ppt .pptx .rtf .hwp .mht .mhtml .zip</code></p>
-      <input id="fileInput" type="file" name="file" style="display:none"
-             accept=".doc,.docx,.xls,.xlsx,.ppt,.pptx,.rtf,.hwp,.mht,.mhtml,.zip" />
-    </div>
+  <section class="card">
+    <form id="upForm" data-endpoint="{{ request.url_for('scan_ms') }}">
+      <div id="dropzone" class="dropzone">
+        <strong>여기에 파일을 끌어다 놓으세요</strong><br/>
+        또는 <label for="fileInput" style="text-decoration:underline; cursor:pointer;">파일 선택</label>
+        <div class="filename" id="fileName"></div>
+      </div>
+      <div class="row" style="margin-top:12px;">
+        <input id="fileInput" name="file" type="file"
+               accept=".doc,.docx,.xls,.xlsx,.ppt,.pptx,.rtf,.docm,.xlsm,.pptm,.hwp" />
+        <button type="submit">업로드 & 스캔</button>
+      </div>
+    </form>
+  </section>
 
-    <div style="margin-top:12px; display:flex; gap:8px; align-items:center;">
-      <button id="uploadBtn" class="btn" disabled>업로드 및 검사 시작</button>
-      <button id="clearBtn" class="btn secondary" type="button">선택 초기화</button>
-      <div id="status" style="margin-left:auto"></div>
-    </div>
+  <section id="status" class="card" style="display:none;"></section>
 
-    <div class="file-list" id="fileList"></div>
+  <section id="summaryCard" class="card" style="display:none;">
+    <h3>LLM 요약</h3>
+    <div id="llmSummary" class="summary"></div>
+  </section>
 
-    <div id="result" style="margin-top:16px;"></div>
-  </div>
+  <section id="analysisCard" class="card" style="display:none;">
+    <h3>원본 분석 결과 (JSON)</h3>
+    <pre id="analysisJson"></pre>
+  </section>
 
-<script>
-(function(){
-  const dropzone = document.getElementById('dropzone');
-  const fileInput = document.getElementById('fileInput');
-  const fileList = document.getElementById('fileList');
-  const uploadBtn = document.getElementById('uploadBtn');
-  const clearBtn = document.getElementById('clearBtn');
-  const status = document.getElementById('status');
-  const result = document.getElementById('result');
+  <script>
+    const form = document.getElementById('upForm');
+    const endpoint = form.dataset.endpoint;
+    const input = document.getElementById('fileInput');
+    const dropzone = document.getElementById('dropzone');
+    const fileNameEl = document.getElementById('fileName');
+    const statusEl = document.getElementById('status');
+    const summaryCard = document.getElementById('summaryCard');
+    const llmSummaryEl = document.getElementById('llmSummary');
+    const analysisCard = document.getElementById('analysisCard');
+    const analysisJsonEl = document.getElementById('analysisJson');
 
-  let selectedFile = null;
-  const MAX_SIZE = 30 * 1024 * 1024; 
-
-  dropzone.addEventListener('click', () => fileInput.click());
-  fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
-
-  ['dragenter','dragover'].forEach(ev => {
-    dropzone.addEventListener(ev, (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      dropzone.classList.add('drag');
-    });
-  });
-  ['dragleave','drop'].forEach(ev => {
-    dropzone.addEventListener(ev, (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      dropzone.classList.remove('drag');
-    });
-  });
-  dropzone.addEventListener('drop', (e) => {
-    const dt = e.dataTransfer;
-    if (dt && dt.files && dt.files.length) handleFiles(dt.files);
-  });
-
-  function handleFiles(files){
-    result.innerHTML = '';
-    if (!files || files.length === 0) return;
-    const f = files[0];
-    const allowed = /\.(docx?|xlsx?|pptx?|rtf|hwp|mht|mhtml|zip)$/i;
-    if (!allowed.test(f.name)) {
-      showError("허용되지 않는 파일 형식입니다: " + f.name);
-      return;
-    }
-    if (f.size > MAX_SIZE) {
-      showError("파일이 너무 큽니다. 최대 30MB까지 허용됩니다.");
-      return;
-    }
-    selectedFile = f;
-    renderFileList();
-    uploadBtn.disabled = false;
-    status.textContent = '';
-  }
-
-  function renderFileList(){
-    fileList.innerHTML = '';
-    if (!selectedFile) return;
-    const item = document.createElement('div');
-    item.className = 'file-item';
-    item.innerHTML = `<div>
-                        <strong>${escapeHtml(selectedFile.name)}</strong>
-                        <div style="font-size:0.85rem;color:#475569">${(selectedFile.size/1024).toFixed(1)} KB</div>
-                      </div>
-                      <div><button id="remove" class="btn secondary">제거</button></div>`;
-    fileList.appendChild(item);
-    document.getElementById('remove').addEventListener('click', () => {
-      selectedFile = null;
-      fileInput.value = '';
-      fileList.innerHTML = '';
-      uploadBtn.disabled = true;
-      status.textContent = '';
-    });
-  }
-
-  clearBtn.addEventListener('click', () => {
-    selectedFile = null;
-    fileInput.value = '';
-    fileList.innerHTML = '';
-    uploadBtn.disabled = true;
-    result.innerHTML = '';
-    status.textContent = '';
-  });
-
-  uploadBtn.addEventListener('click', async () => {
-    if (!selectedFile) return;
-    uploadBtn.disabled = true;
-    status.innerHTML = '<span class="hint">업로드 중...</span>';
-    result.innerHTML = '';
-
-    const form = new FormData();
-    form.append('file', selectedFile, selectedFile.name);
-
-    try {
-      const res = await fetch('/scan/ms', {
-        method: 'POST',
-        body: form
-      });
-      if (!res.ok) {
-        const text = await res.text();
-        showError('서버 오류: ' + res.status + ' — ' + text);
-        uploadBtn.disabled = false;
-        status.textContent = '';
-        return;
+    ['dragenter','dragover'].forEach(evt =>
+      dropzone.addEventListener(evt, e => { e.preventDefault(); e.stopPropagation(); dropzone.classList.add('dragover'); })
+    );
+    ['dragleave','drop'].forEach(evt =>
+      dropzone.addEventListener(evt, e => { e.preventDefault(); e.stopPropagation(); dropzone.classList.remove('dragover'); })
+    );
+    dropzone.addEventListener('drop', e => {
+      const files = e.dataTransfer.files;
+      if (files && files[0]) {
+        input.files = files;
+        fileNameEl.textContent = files[0].name;
       }
-      const data = await res.json();
-      renderResult(data);
-      status.innerHTML = '<span class="success">분석 완료</span>';
-    } catch (err) {
-      showError('네트워크 오류: ' + err.message);
-    } finally {
-      uploadBtn.disabled = false;
-    }
-  });
+    });
+    dropzone.addEventListener('click', () => document.getElementById('fileInput').click());
+    input.addEventListener('change', () => {
+      const f = input.files && input.files[0];
+      fileNameEl.textContent = f ? f.name : '';
+    });
 
-  function renderResult(data) {
-    const html = [];
-    html.push(`<h3>분석 결과</h3>`);
-    html.push(`<p><strong>파일:</strong> ${escapeHtml(data.filename || '')} &nbsp; <strong>id:</strong> ${escapeHtml(data.id || '')}</p>`);
-    if (data.verdict) html.push(`<p><strong>판정:</strong> ${escapeHtml(data.verdict)}</p>`);
-    if (data.indicators) {
-      html.push('<h4>지표</h4><ul>');
-      for (const k in data.indicators) {
-        html.push(`<li>${escapeHtml(k)}: ${escapeHtml(String(data.indicators[k]))}</li>`);
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const f = input.files && input.files[0];
+      if (!f) { alert('파일을 선택하세요.'); return; }
+
+      statusEl.style.display = 'block';
+      statusEl.className = 'card';
+      statusEl.innerHTML = '업로드 중...';
+
+      try {
+        const fd = new FormData();
+        fd.append('file', f, f.name);
+
+        const res = await fetch(endpoint, { method: 'POST', body: fd });
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(`서버 오류: ${res.status}\n${text}`);
+        }
+        const data = await res.json();
+
+        statusEl.innerHTML = `<span class="success">완료</span> — <code>${(data.filename || f.name)}</code>`;
+
+        const llm = (data.llm_summary || '').trim();
+        if (llm) { llmSummaryEl.textContent = llm; summaryCard.style.display = 'block'; }
+        else { summaryCard.style.display = 'none'; }
+
+        analysisJsonEl.textContent = JSON.stringify(data.analysis, null, 2);
+        analysisCard.style.display = 'block';
+
+      } catch (err) {
+        statusEl.innerHTML = `<div class="error">${err.message || err}</div>`;
+        summaryCard.style.display = 'none';
+        analysisCard.style.display = 'none';
       }
-      html.push('</ul>');
-    }
-    if (data.raw) {
-      html.push('<h4>Raw output (요약)</h4>');
-      html.push(`<pre style="background:#0f172a;color:#e6edf3;padding:12px;border-radius:6px;overflow:auto;max-height:240px">${escapeHtml(JSON.stringify(data.raw, null, 2))}</pre>`);
-    }
-    if (data.reports && data.reports.html) {
-      html.push(`<p><a href="${escapeHtml(data.reports.html)}" target="_blank" class="btn">HTML 리포트 열기</a></p>`);
-    }
-    result.innerHTML = html.join('');
-  }
-
-  function showError(msg){
-    status.innerHTML = '<span class="error">'+escapeHtml(msg)+'</span>';
-  }
-
-  function escapeHtml(s){
-    if (!s) return '';
-    return s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'", '&#39;');
-  }
-})();
-</script>
+    });
+  </script>
 </body>
 </html>
