@@ -1,24 +1,31 @@
-document.getElementById("checkBtn").addEventListener("click", () => {
-  const fileInput = document.getElementById("fileInput");
-  const resultDiv = document.getElementById("result");
+const fileInput = document.getElementById('fileInput');
+const fileName = document.getElementById('fileName');
+const scanBtn = document.getElementById('scanBtn');
+const llmSummary = document.getElementById('llmSummary');
+const jsonResult = document.getElementById('jsonResult');
 
+fileInput.addEventListener('change', () => {
+  fileName.textContent = fileInput.files.length > 0 
+    ? fileInput.files[0].name 
+    : '선택된 파일 없음';
+});
+
+scanBtn.addEventListener('click', () => {
   if (!fileInput.files.length) {
-    resultDiv.textContent = "파일을 선택해주세요.";
-    resultDiv.style.color = "red";
+    alert('파일을 먼저 선택해주세요!');
     return;
   }
 
-  const file = fileInput.files[0];
+  // 예시용 더미 결과
+  llmSummary.value = '이 파일은 의심스러운 실행 파일로 보입니다. 주요 행위는 네트워크 연결 및 레지스트리 수정입니다.';
   
-  // 여기서 실제 악성 검사 API 호출 가능
-  // 임시 더미 결과
-  const isMalware = Math.random() < 0.5; // 랜덤 true/false
+  const sampleJSON = {
+    fileName: fileInput.files[0].name,
+    detected: true,
+    riskLevel: "High",
+    behavior: ["Network connection", "Registry modification"],
+    sha256: "a1b2c3d4e5f6..."
+  };
 
-  if (isMalware) {
-    resultDiv.textContent = `${file.name} 은/는 악성파일일 가능성이 있습니다!`;
-    resultDiv.style.color = "red";
-  } else {
-    resultDiv.textContent = `${file.name} 은/는 안전한 파일입니다.`;
-    resultDiv.style.color = "green";
-  }
+  jsonResult.value = JSON.stringify(sampleJSON, null, 2);
 });
