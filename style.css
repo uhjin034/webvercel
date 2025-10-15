@@ -1,87 +1,85 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+
 body {
-  font-family: 'Pretendard', 'Noto Sans KR', sans-serif;
-  background-color: #f2f2f2;
+  font-family: 'Inter', sans-serif;
+  background-color: #f4f4f6;
   margin: 0;
   padding: 0;
   text-align: center;
+  color: #1e1e1e;
 }
 
 .title {
-  font-size: 3rem;
-  color: #1976ff;
-  margin-top: 40px;
-  margin-bottom: 30px;
-  letter-spacing: 2px;
+  font-size: 2.5rem;
+  color: #1976d2;
+  margin: 2rem 0 1rem;
+  font-weight: 800;
 }
 
 .upload-box {
+  background: white;
   display: flex;
-  justify-content: center;
   align-items: center;
-  gap: 15px;
-  background-color: #fff;
-  width: 80%;
-  max-width: 900px;
-  margin: 0 auto 30px;
-  padding: 20px;
-  border-radius: 10px;
-  box-shadow: 2px 3px 6px rgba(0,0,0,0.1);
+  justify-content: center;
+  gap: 1rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  width: 70%;
+  margin: 0 auto 2rem;
+  padding: 1rem 2rem;
 }
 
-.file-btn {
-  background-color: #1976ff;
-  color: white;
-  border: none;
-  padding: 10px 25px;
+.file-btn, #scanBtn {
+  background: white;
+  border: 2px solid #1976d2;
+  color: #1976d2;
+  padding: 0.5rem 1rem;
   border-radius: 25px;
   cursor: pointer;
-  font-size: 1rem;
+  font-weight: 600;
+  transition: all 0.3s;
 }
 
-#scanBtn {
-  background-color: #1976ff;
+.file-btn:hover, #scanBtn:hover {
+  background: #1976d2;
   color: white;
-  border: none;
-  padding: 10px 25px;
-  border-radius: 25px;
-  cursor: pointer;
-  font-size: 1rem;
+}
+
+#fileName {
+  font-size: 0.95rem;
+  color: #555;
 }
 
 .result-box {
-  background-color: #fff;
-  width: 80%;
-  max-width: 900px;
-  margin: 0 auto 20px;
-  padding: 20px;
-  border-radius: 10px;
-  box-shadow: 2px 3px 6px rgba(0,0,0,0.1);
+  width: 70%;
+  margin: 1rem auto;
   text-align: left;
 }
 
 .result-box h2 {
-  color: #1976ff;
-  margin-bottom: 10px;
+  color: #1565c0;
+  font-size: 1.2rem;
+  margin-bottom: 0.5rem;
 }
 
 textarea {
   width: 100%;
   height: 150px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  padding: 10px;
-  font-family: monospace;
   resize: none;
-  background-color: #fafafa;
+  border-radius: 10px;
+  border: 1px solid #ccc;
+  padding: 1rem;
+  font-size: 0.95rem;
+  box-sizing: border-box;
+  background-color: #fff;
 }
 
 footer {
-  background-color: #1976ff;
+  background-color: #1976d2;
   color: white;
-  padding: 10px;
-  font-weight: 500;
+  padding: 0.8rem;
   position: fixed;
   width: 100%;
   bottom: 0;
+  font-size: 0.9rem;
 }
-
