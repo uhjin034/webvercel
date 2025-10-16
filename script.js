@@ -1,44 +1,45 @@
-document.getElementById('fileInput').addEventListener('change', function(event) {
-  const file = event.target.files[0];
-  document.getElementById('fileName').textContent = file ? file.name : '선택된 파일 없음';
-});
+document.getElementById("scanBtn").addEventListener("click", async () => {
+  const fileInput = document.getElementById("fileInput");
+  const file = fileInput.files[0];
+  const llmSummary = document.getElementById("llmSummary");
+  const jsonResult = document.getElementById("jsonResult");
 
-document.getElementById('scanBtn').addEventListener('click', async function() {
-  const file = document.getElementById('fileInput').files[0];
   if (!file) {
-    alert('파일을 선택하세요!');
+    alert("파일을 선택하세요!");
     return;
   }
 
-  const fileNameWithoutExt = file.name.split('.').slice(0, -1).join('.');
-  const jsonUrl = `./security_oletools/${fileNameWithoutExt}.json`;
+  document.getElementById("fileName").textContent = file.name;
+  llmSummary.value = "🔄 파일을 분석 중입니다...";
+  jsonResult.value = "";
+
+  const formData = new FormData();
+  formData.append("file", file);
 
   try {
-    const response = await fetch(jsonUrl);
+    // FastAPI 백엔드 엔드포인트로 업로드
+    const response = await fetch("/scan/ms", {
+      method: "POST",
+      body: formData,
+    });
+
     if (!response.ok) {
-      throw new Error('분석 결과 파일을 찾을 수 없습니다.');
+      throw new Error(`서버 오류: ${response.status}`);
     }
 
-    const data = await response.json();
+    const result = await response.json();
 
-    // LLM 요약 표시
-    document.getElementById('llmSummary').value = 
-`## 문서 악성코드 분석 보고서
-**파일:** ${file.name}
-**판정:** ${data.result}
+    // JSON 결과를 보기 좋게 표시
+    jsonResult.value = JSON.stringify(result.analysis, null, 2);
 
----
-### 실행 요약
-${data.summary || '요약 정보 없음'}
+    // LLM 요약 출력
+    if (result.llm_summary) {
+      llmSummary.value = result.llm_summary;
+    } else {
+      llmSummary.value = "⚠️ LLM 요약 생성 실패";
+    }
 
-### 권고 조치
-${(data.recommendations || []).map((r, i) => `${i+1}. ${r}`).join('\n')}`;
-
-    // 원본 JSON 표시
-    document.getElementById('jsonResult').value = JSON.stringify(data, null, 2);
-
-  } catch (error) {
-    document.getElementById('llmSummary').value = `❌ 분석 결과를 불러올 수 없습니다.\n(${error.message})`;
-    document.getElementById('jsonResult').value = '';
+  } catch (err) {
+    llmSummary.value = `❌ 분석 실패: ${err.message}`;
   }
 });
